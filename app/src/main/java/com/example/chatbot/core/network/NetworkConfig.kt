@@ -6,17 +6,12 @@ package com.example.chatbot.core.network
 object NetworkConfig {
 
     /**
-     * URL del Webhook HTTPS de n8n Cloud en Producción.
-     * 
-     * INSTRUCCIONES MANUALES:
-     * Para conectar la APK con tu n8n Cloud en producción, reemplaza el valor de esta constante
-     * por la URL HTTPS real generada por tu nodo Webhook en n8n Cloud:
-     * Ejemplo: "https://tu-instancia.n8n.cloud/webhook/chatbot-academico"
+     * URL del Webhook HTTPS de producción en n8n Cloud.
      */
-    const val N8N_WEBHOOK_URL = "REEMPLAZAR_POR_URL_REAL_DEL_WEBHOOK_HTTPS_N8N"
+    const val N8N_WEBHOOK_URL = "https://cienciadatos.app.n8n.cloud/webhook/chatbot-academico"
 
     /**
-     * URL base predeterminada para la inicialización de Retrofit en entorno HTTPS.
+     * URL base predeterminada para la inicialización del cliente Retrofit.
      */
-    const val DEFAULT_BASE_URL = "https://n8n.cloud/"
+    const val DEFAULT_BASE_URL = "https://cienciadatos.app.n8n.cloud/"
 }
