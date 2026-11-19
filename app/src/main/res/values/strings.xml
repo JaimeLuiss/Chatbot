@@ -3,4 +3,12 @@
     <string name="home_title">Ingeniería de Sistemas - UNAB</string>
     <string name="welcome_placeholder">Cargando bienvenida&#8230;</string>
     <string name="status_placeholder">Cargando estado&#8230;</string>
+
+    <string name="student_selection_title">Selección de Estudiante DEMO</string>
+    <string name="student_selection_subtitle">Selecciona una cuenta de estudiante ficticio de la UNAB para ingresar:</string>
+    <string name="dashboard_title">Panel Académico UNAB</string>
+    <string name="chat_title">Asistente Académico UNAB</string>
+    <string name="chat_input_hint">Escribe tu consulta académica&#8230;</string>
+    <string name="btn_send">Enviar</string>
+    <string name="quick_questions_title">Consultas Rápidas Recomendadas:</string>
 </resources>

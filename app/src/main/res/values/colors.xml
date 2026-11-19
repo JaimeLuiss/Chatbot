@@ -2,4 +2,13 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="unab_purple">#6B21A8</color>
+    <color name="unab_purple_dark">#4C1D95</color>
+    <color name="unab_purple_light">#F3E8FF</color>
+    <color name="unab_yellow">#F59E0B</color>
+    <color name="unab_dark_grey">#1F2937</color>
+    <color name="unab_light_bg">#F9FAFB</color>
+    <color name="unab_card_border">#E5E7EB</color>
+    <color name="user_bubble">#6B21A8</color>
+    <color name="assistant_bubble">#F3F4F6</color>
 </resources>
