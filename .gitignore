@@ -28,6 +28,8 @@ local.properties
 *.iml
 
 # Key & Secrets
+.env
+.env.local
 *.keystore
 *.jks
 *.p12

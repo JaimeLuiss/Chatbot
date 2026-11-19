@@ -1,0 +1,180 @@
+{
+  "name": "Chatbot Academico UNAB",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chatbot-academico",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "webhookId": "chatbot-academico-webhook-id"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body || {};\nconst studentCode = (body.student_code || '').trim();\nconst message = (body.message || '').trim();\nlet conversationId = body.conversation_id || null;\n\n// 1. VALIDACIÓN DE CAMPOS OBLIGATORIOS\nif (!studentCode) {\n  return [{\n    json: {\n      error: true,\n      status_code: 400,\n      response: 'Error: Debe proporcionar el código del estudiante (student_code).'\n    }\n  }];\n}\nif (!message) {\n  return [{\n    json: {\n      error: true,\n      status_code: 400,\n      response: 'Error: Debe escribir un mensaje o pregunta para el chatbot.'\n    }\n  }];\n}\n\n// 2. GUARDRAILS DE SEGURIDAD Y FILTRADO\nif (message.length > 500) {\n  return [{\n    json: {\n      error: true,\n      status_code: 400,\n      response: 'Tu mensaje excede el límite permitido de 500 caracteres. Por favor realiza una pregunta más concisa.'\n    }\n  }];\n}\n\nconst lowerMsg = message.toLowerCase();\n\n// Guardrail: Inyección de Prompts / Credenciales\nconst injectionKeywords = ['password', 'contraseña', 'api_key', 'apikey', 'secret', 'drop table', 'delete from', 'ignore previous', 'ignora las instrucciones'];\nif (injectionKeywords.some(kw => lowerMsg.includes(kw))) {\n  return [{\n    json: {\n      error: true,\n      status_code: 403,\n      response: 'Por razones de seguridad y privacidad, no puedo procesar consultas sobre credenciales o comandos del sistema.'\n    }\n  }];\n}\n\n// Guardrail: Vocabulario ofensivo / inapropiado\nconst offensiveKeywords = ['groseria', 'insulto', 'estupido', 'bobo', 'idiota'];\nif (offensiveKeywords.some(kw => lowerMsg.includes(kw))) {\n  return [{\n    json: {\n      error: true,\n      status_code: 400,\n      response: 'Por favor utiliza un lenguaje respetuoso. Estoy aquí para apoyarte en tus consultas académicas de la UNAB.'\n    }\n  }];\n}\n\n// 3. CLASIFICACIÓN DE INTENCIÓN SQL\nlet intent = 'general_chat';\nif (lowerMsg.includes('aprobada') || lowerMsg.includes('pasé') || lowerMsg.includes('gané')) {\n  intent = 'approved_subjects';\n} else if (lowerMsg.includes('reprobada') || lowerMsg.includes('perdí') || lowerMsg.includes('perdi')) {\n  intent = 'failed_subjects';\n} else if (lowerMsg.includes('pendiente') || lowerMsg.includes('me falta') || lowerMsg.includes('faltan')) {\n  intent = 'pending_subjects';\n} else if (lowerMsg.includes('en curso') || lowerMsg.includes('viendo') || lowerMsg.includes('matriculada')) {\n  intent = 'current_subjects';\n} else if (lowerMsg.includes('promedio') || lowerMsg.includes('gpa') || lowerMsg.includes('acumulado')) {\n  intent = 'gpa';\n} else if (lowerMsg.includes('crédito') || lowerMsg.includes('credito')) {\n  if (lowerMsg.includes('falta') || lowerMsg.includes('pendiente')) {\n    intent = 'credits_pending';\n  } else {\n    intent = 'credits_approved';\n  }\n} else if (lowerMsg.includes('avance') || lowerMsg.includes('porcentaje')) {\n  intent = 'academic_progress';\n} else if (lowerMsg.includes('prerrequisito') || lowerMsg.includes('requisito')) {\n  intent = 'pending_prerequisites';\n} else if (lowerMsg.includes('cursar') || lowerMsg.includes('proyectar') || lowerMsg.includes('disponible')) {\n  intent = 'available_subjects';\n} else if (lowerMsg.includes('repetida') || lowerMsg.includes('intentos')) {\n  intent = 'repeated_subjects';\n} else if (lowerMsg.includes('historial') || lowerMsg.includes('calificaciones') || lowerMsg.includes('notas')) {\n  intent = 'grades_history';\n} else if (lowerMsg.includes('pensum') || lowerMsg.includes('plan')) {\n  intent = 'assigned_plan';\n} else if (lowerMsg.includes('estudiante') || lowerMsg.includes('perfil') || lowerMsg.includes('datos')) {\n  intent = 'student_info';\n}\n\nreturn [{\n  json: {\n    error: false,\n    student_code: studentCode,\n    conversation_id: conversationId,\n    message: message,\n    intent: intent\n  }\n}];"
+      },
+      "name": "Validar Parametros y Guardrails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Es Error de Guardrail?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"conversation_id\": {{ $json.conversation_id || null }},\n  \"student_code\": \"{{ $json.student_code || '' }}\",\n  \"response\": \"{{ $json.response }}\",\n  \"intent\": \"guardrail_blocked\",\n  \"source\": \"guardrail\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {
+          "responseCode": "={{ $json.status_code || 400 }}"
+        }
+      },
+      "name": "Respuesta Error Guardrail",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  e.id_estudiante, e.codigo_estudiante, e.nombre_completo, p.nombre_programa, pe.version_plan,\n  (SELECT COUNT(*) FROM historial_academico h WHERE h.id_estudiante = e.id_estudiante AND h.estado_materia = 'APROBADA') AS materias_aprobadas_cnt,\n  (SELECT COUNT(*) FROM historial_academico h WHERE h.id_estudiante = e.id_estudiante AND h.estado_materia = 'REPROBADA') AS materias_reprobadas_cnt,\n  (SELECT COUNT(*) FROM historial_academico h WHERE h.id_estudiante = e.id_estudiante AND h.estado_materia = 'EN_CURSO') AS materias_en_curso_cnt,\n  (SELECT COALESCE(SUM(m.creditos), 0) FROM historial_academico h JOIN materias m ON h.id_materia = m.id_materia WHERE h.id_estudiante = e.id_estudiante AND h.estado_materia = 'APROBADA') AS creditos_aprobados_sum,\n  (SELECT ROUND(SUM(h.nota_final * m.creditos) / NULLIF(SUM(m.creditos), 0), 2) FROM historial_academico h JOIN materias m ON h.id_materia = m.id_materia WHERE h.id_estudiante = e.id_estudiante AND h.nota_final IS NOT NULL) AS promedio_gpa\nFROM estudiantes e\nJOIN programas p ON e.id_programa = p.id_programa\nJOIN estudiante_plan_estudio epe ON epe.id_estudiante = e.id_estudiante AND epe.estado_asignacion = 'ACTIVO'\nJOIN planes_estudio pe ON epe.id_plan = pe.id_plan\nWHERE e.codigo_estudiante = '{{ $json.student_code }}';"
+      },
+      "name": "Consultar PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        450],
+      "credentials": {
+        "postgres": {
+          "id": "chatbot_postgres_cred",
+          "name": "Chatbot PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const studentInfo = $input.first().json;\nconst prevData = $('Validar Parametros y Guardrails').first().json;\nconst intent = prevData.intent;\nconst studentCode = prevData.student_code;\nconst userMsg = prevData.message;\nlet convId = prevData.conversation_id || 1;\n\nif (!studentInfo || !studentInfo.codigo_estudiante) {\n  return [{\n    json: {\n      success: false,\n      conversation_id: convId,\n      student_code: studentCode,\n      response: `El código de estudiante '${studentCode}' no se encuentra registrado en el sistema universitario UNAB.`,\n      intent: 'student_not_found',\n      source: 'postgresql',\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nlet responseText = '';\nconst nombre = studentInfo.nombre_completo;\nconst programa = studentInfo.nombre_programa;\nconst plan = studentInfo.version_plan;\nconst gpa = studentInfo.promedio_gpa || 0.0;\nconst creditos = studentInfo.creditos_aprobados_sum || 0;\nconst aprobadas = studentInfo.materias_aprobadas_cnt || 0;\nconst reprobadas = studentInfo.materias_reprobadas_cnt || 0;\nconst enCurso = studentInfo.materias_en_curso_cnt || 0;\n\nswitch (intent) {\n  case 'approved_subjects':\n    responseText = `¡Hola ${nombre}! De acuerdo con tu registro académico en ${programa} (${plan}), tienes un total de ${aprobadas} materias APROBADAS acumulando ${creditos} créditos académicos.`;\n    break;\n  case 'failed_subjects':\n    responseText = `Hola ${nombre}. En tu historial académico registras ${reprobadas} materia(s) REPROBADA(S). Te sugerimos revisar las opciones de repetición en el próximo periodo.`;\n    break;\n  case 'current_subjects':\n    responseText = `Hola ${nombre}. Actualmente tienes ${enCurso} materia(s) EN CURSO en el periodo lectivo vigente.`;\n    break;\n  case 'gpa':\n    responseText = `Hola ${nombre}. Tu promedio académico acumulado (GPA) actual es de ${gpa} / 5.00 en el programa ${programa}.`;\n    break;\n  case 'credits_approved':\n    responseText = `Hola ${nombre}. Has completado y aprobado un total de ${creditos} créditos académicos en tu plan ${plan}.`;\n    break;\n  case 'credits_pending':\n    responseText = `Hola ${nombre}. Considerando un pensum estándar de 21 créditos DEMO, tienes aprobados ${creditos} créditos y te restan aproximadamente ${Math.max(0, 21 - creditos)} créditos pendientes.`;\n    break;\n  case 'academic_progress':\n    const pct = ((creditos / 21) * 100).toFixed(2);\n    responseText = `Hola ${nombre}. Tu avance académico actual en el programa ${programa} es del ${pct}% (${creditos} de 21 créditos DEMO del plan ${plan}).`;\n    break;\n  case 'pending_prerequisites':\n    responseText = `Hola ${nombre}. Para tu plan ${plan}, recuerda verificar los prerrequisitos aprobando Cálculo I antes de Cálculo II, y Programación I antes de Programación II.`;\n    break;\n  case 'available_subjects':\n    responseText = `Hola ${nombre}. Según tus asignaturas aprobadas (${aprobadas}), estás habilitado para matricular asignaturas del semestre siguiente en tu plan ${plan}.`;\n    break;\n  case 'student_info':\n    responseText = `Estudiante: ${nombre} | Código: ${studentCode} | Programa: ${programa} | Plan Activo: ${plan} | Promedio: ${gpa} | Créditos Aprobados: ${creditos}.`;\n    break;\n  default:\n    responseText = `¡Hola ${nombre}! Soy el Asistente Académico UNAB. Tu promedio actual es de ${gpa} y cuentas con ${creditos} créditos aprobados. ¿En qué más puedo ayudarte con tu pensum (${plan})?`;\n    break;\n}\n\nreturn [{\n  json: {\n    success: true,\n    conversation_id: convId,\n    student_code: studentCode,\n    response: responseText,\n    intent: intent,\n    source: 'postgresql_structured',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Formatear Respuesta y Memoria Chat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        450]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respuesta Webhook Exitosa",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        450]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validar Parametros y Guardrails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Parametros y Guardrails": {
+      "main": [
+        [
+          {
+            "node": "Es Error de Guardrail?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es Error de Guardrail?": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Error Guardrail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Consultar PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Formatear Respuesta y Memoria Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Respuesta y Memoria Chat": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Webhook Exitosa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
